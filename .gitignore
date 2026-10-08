@@ -22,6 +22,8 @@ terraform.rc
 crash.log
 crash.*.log
 # DO commit .terraform.lock.hcl: it pins the provider versions
+# ...but only for root modules: child modules get one when validated locally
+**/modules/**/.terraform.lock.hcl
 
 # --- Secrets and credentials --------------------------------------------------
 # No service account keys: ADC locally, workload identity federation in CI
