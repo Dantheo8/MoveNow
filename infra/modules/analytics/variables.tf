@@ -55,3 +55,9 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+
+variable "deletion_protection" {
+  description = "Empêche Terraform de supprimer la table. À désactiver pour un environnement qui doit pouvoir être détruit."
+  type        = bool
+  default     = true
+}

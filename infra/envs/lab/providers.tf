@@ -9,3 +9,9 @@ terraform {
 provider "google" {
   project = "groupe3inssettp"
 }
+provider "google" {
+  project = var.project_id
+  region  = var.region
+
+  default_labels = var.labels
+}

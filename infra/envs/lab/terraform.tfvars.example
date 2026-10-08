@@ -1,0 +1,19 @@
+project_id = "your-project"
+region     = "europe-west9"
+prefix     = "g3-movenow"
+
+labels = {
+  project     = "movenow"
+  group       = "g3"
+  environment = "lab"
+  managed_by  = "terraform"
+}
+
+message_retention_duration = "604800s"
+max_delivery_attempts      = 5
+retention_days             = 7
+table_deletion_protection  = false
+
+producer_impersonators = [
+  "user:first.last@example.com",
+]
