@@ -1,0 +1,8 @@
+{
+  "name": "movenow-producteur",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@google-cloud/pubsub": "^6.1.0"
+  }
+}

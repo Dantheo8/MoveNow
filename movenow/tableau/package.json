@@ -1,0 +1,12 @@
+{
+  "name": "movenow-tableau",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@google-cloud/bigquery": "^9.1.0",
+    "@google-cloud/pubsub": "^6.1.0"
+  }
+}

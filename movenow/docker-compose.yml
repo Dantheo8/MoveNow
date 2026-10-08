@@ -1,0 +1,43 @@
+# MoveNow en local : docker compose up --build, puis http://localhost:8080
+name: movenow-local
+
+services:
+  # L'émulateur Pub/Sub officiel de Google. Il remplace le vrai service, sans IAM ni BigQuery.
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: ["gcloud", "beta", "emulators", "pubsub", "start", "--project=movenow-local", "--host-port=0.0.0.0:8085"]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8085"]
+      interval: 3s
+      retries: 40
+
+  # Tableau de bord. En local, il imite aussi la BigQuery subscription et la dead-letter policy.
+  tableau:
+    build: ./tableau
+    ports:
+      - "8080:8080"
+    environment:
+      PUBSUB_EMULATOR_HOST: pubsub:8085
+      PUBSUB_PROJECT_ID: movenow-local
+      LOTS_DIR: /lots
+    volumes:
+      - lots:/lots
+    depends_on:
+      pubsub:
+        condition: service_healthy
+
+  # Le producteur publie en continu des lots d'une minute, avec deux messages invalides par lot.
+  producteur:
+    build: ./producteur
+    command: ["--project", "movenow-local", "--topic", "positions", "--rate", "5", "--duration", "60",
+              "--invalid", "2", "--batch", "lot-local", "--out", "/lots", "--loop"]
+    environment:
+      PUBSUB_EMULATOR_HOST: pubsub:8085
+    volumes:
+      - lots:/lots
+    depends_on:
+      tableau:
+        condition: service_healthy
+
+volumes:
+  lots:

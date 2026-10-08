@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MoveNow, tableau de bord</title>
+<link rel="stylesheet" href="/kit.css">
+<style>
+  #carte { width: 100%; height: auto; display: block; border-radius: 6px; background: #0b1220; }
+  #carte .grille line { stroke: #1f2a3c; stroke-width: 1; }
+  #carte text { fill: #64748b; font: 11px var(--mono); }
+  #carte .trace { fill: none; stroke-width: 1.5; opacity: 0.45; }
+  #debit { width: 100%; height: 90px; display: block; }
+  #debit rect { fill: var(--accent); }
+  .etat-transfert { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .resultat .stat strong { font-size: 18px; }
+  .ids { font: 12px/1.6 var(--mono); color: var(--muted); max-height: 120px; overflow: auto; overflow-wrap: anywhere; }
+</style>
+<script defer src="/carte.js"></script>
+<script defer src="/app.js"></script>
+</head>
+<body style="--accent:#d97706">
+<header><div class="bar"><span class="mark"></span><span class="brand">MoveNow</span><span class="env" id="env">connexion…</span></div></header>
+<main>
+  <div>
+    <h1>Flux des positions</h1>
+    <p class="lead">Ce que le pipeline a réellement écrit dans la table, ce qui attend encore et ce qui est parti en dead-letter. Les positions sont inventées.</p>
+  </div>
+
+  <div class="alert" id="alert" hidden></div>
+
+  <section class="panel">
+    <h2>Carte du déploiement</h2>
+    <div class="carte" id="deploiement"><p class="muted">Analyse en cours…</p></div>
+  </section>
+
+  <div class="stats">
+    <div class="stat"><span>Écrits dans la table</span><strong id="c-recus">…</strong></div>
+    <div class="stat"><span>En dead-letter</span><strong id="c-dl">…</strong></div>
+    <div class="stat"><span>En attente</span><strong id="c-attente">…</strong></div>
+    <div class="stat"><span>Débit récent</span><strong id="c-debit">…</strong></div>
+  </div>
+
+  <div class="split">
+    <section class="panel">
+      <h2>Dernière position de chaque véhicule</h2>
+      <svg id="carte" viewBox="0 0 600 380" role="img" aria-label="Carte des positions fictives"></svg>
+    </section>
+    <section class="panel">
+      <h2>Transfert vers la table</h2>
+      <div class="etat-transfert"><span id="t-etat" class="badge">…</span><span class="small muted" id="t-texte"></span></div>
+      <div class="row"><button id="t-couper">Couper le transfert</button><button class="primary" id="t-retablir">Rétablir</button></div>
+      <p class="small muted">Couper le transfert imite le retrait du droit d’écriture : les messages patientent, puis le pipeline rattrape son retard. Mesurez le temps de drainage.</p>
+      <h2 style="margin-top:18px">Débit écrit dans la table</h2>
+      <svg id="debit" viewBox="0 0 300 90" preserveAspectRatio="none" aria-label="Débit récent"></svg>
+      <p class="small muted" id="debit-legende"></p>
+    </section>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Derniers événements écrits</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>event_id</th><th>Véhicule</th><th>Heure</th></tr></thead>
+        <tbody id="evenements"></tbody>
+      </table></div>
+    </section>
+    <section class="panel">
+      <h2>Dead-letter</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>event_id</th><th>Erreur</th><th>Essais</th></tr></thead>
+        <tbody id="dead-letter"><tr><td colspan="3" class="muted">Aucun message en échec pour l’instant.</td></tr></tbody>
+      </table></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Réconcilier un lot</h2>
+    <div class="row">
+      <select id="lot" aria-label="Lot"></select>
+      <label>ou la liste attendue du producteur : <input type="file" id="fichier" accept=".jsonl"></label>
+      <button class="primary" id="reconcilier">Réconcilier</button>
+    </div>
+    <div class="stats resultat" style="margin-top:14px" id="resultat" hidden>
+      <div class="stat"><span>Attendus</span><strong id="r-attendus">…</strong></div>
+      <div class="stat"><span>Écrits</span><strong id="r-ecrits">…</strong></div>
+      <div class="stat"><span>Doublons</span><strong id="r-doublons">…</strong></div>
+      <div class="stat"><span>En dead-letter</span><strong id="r-dl">…</strong></div>
+      <div class="stat"><span>Manquants</span><strong id="r-manquants">…</strong></div>
+    </div>
+    <p class="small muted" id="r-note">Comparez des identifiants, pas seulement des nombres : une perte et un doublon peuvent se compenser.</p>
+    <div class="ids" id="r-ids"></div>
+  </section>
+</main>
+<footer>Démonstrateur du TP Insset GCP M1 2026. Il sert à vérifier l’infrastructure, il n’est pas évalué.</footer>
+</body>
+</html>
