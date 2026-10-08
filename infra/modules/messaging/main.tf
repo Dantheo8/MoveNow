@@ -43,24 +43,9 @@ resource "google_pubsub_subscription" "dead_letter_inspection" {
   }
 }
 
-resource "google_service_account" "producer" {
-  project      = var.project_id
-  account_id   = "${var.prefix}-producer"
-  display_name = "MoveNow producer"
-  description  = "Publishes fake vehicle positions to the positions topic, nothing else."
-}
-
 resource "google_pubsub_topic_iam_member" "producer_publisher" {
   project = var.project_id
   topic   = google_pubsub_topic.positions.name
   role    = "roles/pubsub.publisher"
-  member  = google_service_account.producer.member
-}
-
-resource "google_service_account_iam_member" "producer_impersonators" {
-  for_each = toset(var.producer_impersonators)
-
-  service_account_id = google_service_account.producer.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = each.value
+  member  = "serviceAccount:${var.producer_service_account_email}"
 }

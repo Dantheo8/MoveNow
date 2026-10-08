@@ -18,6 +18,11 @@ output "apply_service_account" {
   value       = google_service_account.apply.email
 }
 
+output "producer_service_account" {
+  description = "Identity the producer runs as. The lab grants it publish rights on the positions topic."
+  value       = google_service_account.producer.email
+}
+
 output "github_variables" {
   description = "Repository variables to create in GitHub (Settings, Secrets and variables, Actions, Variables)."
   value = {

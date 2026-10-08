@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Inventory after a destroy: lists the lab resources of a prefix that still exist, and what the
 # bootstrap keeps on purpose. Exits 1 if lab resources remain, 2 if something could not be listed.
-#   ./scripts/inventory.sh <project> <prefix>
+#   ./scripts/inventory.sh <project> <prefix> [dataset, default movenow]
 set -uo pipefail
 
-if [ $# -ne 2 ]; then
-  echo "Usage: $0 <project> <prefix>" >&2
+if [ $# -lt 2 ] || [ $# -gt 3 ]; then
+  echo "Usage: $0 <project> <prefix> [dataset]" >&2
   exit 2
 fi
 project=$1
 prefix=$2
-dataset=${prefix//-/_}
+dataset=${3:-movenow}
 status=0
 
 check() {
@@ -40,11 +40,11 @@ check "Pub/Sub topics" gcloud pubsub topics list --project="$project" \
 check "Pub/Sub subscriptions" gcloud pubsub subscriptions list --project="$project" \
   --filter="name~/subscriptions/$prefix-" --format="value(name)"
 check "Service accounts" gcloud iam service-accounts list --project="$project" \
-  --filter="email~^$prefix- AND NOT email~-ci-" --format="value(email)"
+  --filter="email~^$prefix- AND NOT email~-ci- AND NOT email~-producer@" --format="value(email)"
 check "BigQuery datasets" list_datasets
 
 echo
-echo "Kept on purpose by the bootstrap: the state bucket, the workload identity pool and these CI accounts:"
-gcloud iam service-accounts list --project="$project" --filter="email~^$prefix-ci-" --format="value(email)" |
+echo "Kept on purpose by the bootstrap: the state bucket, the workload identity pool and these accounts:"
+gcloud iam service-accounts list --project="$project" --filter="email~^$prefix-(ci-|producer@)" --format="value(email)" |
   sed 's/^/    /'
 exit "$status"

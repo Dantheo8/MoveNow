@@ -4,8 +4,8 @@ Root module of the lab. It enables the APIs and assembles the modules:
 
 | Module | Builds |
 | --- | --- |
-| `messaging` | Positions topic, dead-letter topic and inspection subscription, producer identity |
-| `analytics` | Dataset `<prefix with underscores>` and the partitioned `positions` table (schema in `infra/schemas/positions.json`) |
+| `messaging` | Positions topic, dead-letter topic and inspection subscription, publish right of the producer identity (created by the bootstrap) |
+| `analytics` | Dataset `movenow` (`dataset_id`) and the partitioned `positions` table (schema in `infra/schemas/positions.json`) |
 | `delivery` | BigQuery subscription from the topic to the table, its dead-letter policy and the Pub/Sub service agent's roles |
 
 The state lives in the bucket created by `infra/bootstrap` (prefix `lab`), which must be applied
@@ -48,7 +48,7 @@ hand with:
 ```
 
 **Nominal path and invalid messages, as the producer identity.** Your account must be listed in
-`producer_impersonators`. The batch has 50 events, 3 of them with an invalid latitude.
+`producer_impersonators` of the bootstrap. The batch has 50 events, 3 of them with an invalid latitude.
 
 ```sh
 TOPIC=$(terraform output -raw topic_name)
@@ -95,5 +95,5 @@ Run the `Terraform destroy` workflow on `main` (type `destroy lab`, then approve
 what remains:
 
 ```sh
-../../../scripts/inventory.sh "$GOOGLE_CLOUD_PROJECT" "$PREFIX"
+../../../scripts/inventory.sh "$GOOGLE_CLOUD_PROJECT" "$PREFIX" movenow
 ```

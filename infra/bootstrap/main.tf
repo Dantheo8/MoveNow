@@ -75,11 +75,17 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   display_name                       = "GitHub OIDC"
 
   attribute_mapping = {
-    "google.subject"       = "assertion.sub"
-    "attribute.repository" = "assertion.repository"
-    "attribute.ref"        = "assertion.ref"
+    "google.subject"                = "assertion.sub"
+    "attribute.repository"          = "assertion.repository"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
+    "attribute.ref"                 = "assertion.ref"
   }
-  attribute_condition = "assertion.repository == \"${var.github_repository}\""
+  attribute_condition = join(" && ", [
+    "assertion.repository_id == \"${var.github_repository_id}\"",
+    "assertion.repository_owner_id == \"${var.github_repository_owner_id}\"",
+    "assertion.ref == \"refs/heads/${var.deploy_branch}\"",
+  ])
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
@@ -98,6 +104,21 @@ resource "google_service_account" "apply" {
   account_id   = "${var.prefix}-ci-apply"
   display_name = "CI apply"
   description  = "Applies reviewed plans from the ${var.deploy_environment} environment of ${var.github_repository}."
+}
+
+resource "google_service_account" "producer" {
+  project      = var.project_id
+  account_id   = "${var.prefix}-producer"
+  display_name = "MoveNow producer"
+  description  = "Publishes fake vehicle positions to the positions topic, nothing else."
+}
+
+resource "google_service_account_iam_member" "producer_impersonators" {
+  for_each = toset(var.producer_impersonators)
+
+  service_account_id = google_service_account.producer.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = each.value
 }
 
 resource "google_service_account_iam_member" "plan_workload_identity" {
@@ -128,10 +149,22 @@ resource "google_project_iam_member" "apply" {
   member  = google_service_account.apply.member
 }
 
-resource "google_storage_bucket_iam_member" "state_plan" {
+resource "google_storage_bucket_iam_member" "state_plan_read" {
   bucket = google_storage_bucket.state.name
-  role   = "roles/storage.objectAdmin"
+  role   = "roles/storage.objectViewer"
   member = google_service_account.plan.member
+}
+
+resource "google_storage_bucket_iam_member" "state_plan_save_plans" {
+  bucket = google_storage_bucket.state.name
+  role   = "roles/storage.objectCreator"
+  member = google_service_account.plan.member
+
+  condition {
+    title       = "saved-plans-only"
+    description = "Create new objects under plans/ only. Without delete, existing objects cannot be overwritten."
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.state.name}/objects/plans/\")"
+  }
 }
 
 resource "google_storage_bucket_iam_member" "state_apply" {

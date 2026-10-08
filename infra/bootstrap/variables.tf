@@ -40,6 +40,26 @@ variable "github_repository" {
   }
 }
 
+variable "github_repository_id" {
+  description = "Immutable numeric id of the repository (gh api repos/OWNER/NAME --jq .id). Unlike the name, it cannot be reclaimed by someone else."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_id))
+    error_message = "github_repository_id must be the numeric repository id."
+  }
+}
+
+variable "github_repository_owner_id" {
+  description = "Immutable numeric id of the repository owner (gh api repos/OWNER/NAME --jq .owner.id)."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_owner_id))
+    error_message = "github_repository_owner_id must be the numeric owner id."
+  }
+}
+
 variable "deploy_branch" {
   description = "Trusted branch whose workflows may plan with the plan identity."
   type        = string
@@ -56,6 +76,12 @@ variable "state_bucket_name" {
   description = "Name of the Terraform state bucket. null derives it from the project and the prefix."
   type        = string
   default     = null
+}
+
+variable "producer_impersonators" {
+  description = "Members allowed to run the producer as its service account, without any key, e.g. [\"user:first.last@example.com\"]."
+  type        = list(string)
+  default     = []
 }
 
 variable "plan_retention_days" {
@@ -80,12 +106,11 @@ variable "plan_roles" {
 }
 
 variable "apply_roles" {
-  description = "Project roles of the apply identity: create, change and delete the lab resources."
+  description = "Project roles of the apply identity: create, change and delete the lab resources. No role able to change service account policies, so the identity cannot escalate its own rights."
   type        = list(string)
   default = [
     "roles/browser",
     "roles/bigquery.admin",
-    "roles/iam.serviceAccountAdmin",
     "roles/pubsub.admin",
     "roles/serviceusage.serviceUsageAdmin",
   ]

@@ -1,22 +1,3 @@
-module "analytics" {
-  source = "../../modules/analytics"
-
-  project_id = "groupe3inssettp"
-  location   = "europe-west9"
-
-  dataset_id = "movenow"
-  table_id   = "positions"
-
-  schema = file("${path.module}/../../schemas/positions.json")
-
-  partition_field = "event_time"
-  retention_days  = 7
-
-  labels = {
-    projet        = "movenow"
-    environnement = "lab"
-  }
-}
 locals {
   services = [
     "bigquery.googleapis.com",
@@ -38,10 +19,10 @@ resource "google_project_service" "this" {
 module "messaging" {
   source = "../../modules/messaging"
 
-  project_id                  = var.project_id
-  prefix                      = var.prefix
-  allowed_persistence_regions = [var.region]
-  producer_impersonators      = var.producer_impersonators
+  project_id                     = var.project_id
+  prefix                         = var.prefix
+  allowed_persistence_regions    = [var.region]
+  producer_service_account_email = "${var.prefix}-producer@${var.project_id}.iam.gserviceaccount.com"
 
   depends_on = [google_project_service.this]
 }
@@ -51,7 +32,7 @@ module "analytics" {
 
   project_id          = var.project_id
   location            = var.region
-  dataset_id          = replace(var.prefix, "-", "_")
+  dataset_id          = var.dataset_id
   table_id            = "positions"
   schema              = file("${path.module}/../../schemas/positions.json")
   retention_days      = var.retention_days

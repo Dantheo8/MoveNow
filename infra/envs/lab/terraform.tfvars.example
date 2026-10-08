@@ -1,4 +1,4 @@
-project_id = "your-project"
+project_id = "groupe3inssettp"
 region     = "europe-west9"
 prefix     = "g3-movenow"
 
@@ -13,7 +13,3 @@ message_retention_duration = "604800s"
 max_delivery_attempts      = 5
 retention_days             = 7
 table_deletion_protection  = false
-
-producer_impersonators = [
-  "user:first.last@example.com",
-]

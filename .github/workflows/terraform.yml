@@ -21,7 +21,6 @@ env:
   TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
   TF_VAR_region: ${{ vars.GCP_REGION }}
   TF_VAR_prefix: ${{ vars.TF_PREFIX }}
-  TF_VAR_producer_impersonators: ${{ vars.TF_PRODUCER_IMPERSONATORS || '[]' }}
 
 jobs:
   validate:
@@ -60,6 +59,7 @@ jobs:
     outputs:
       has_changes: ${{ steps.plan.outputs.has_changes }}
       plan_object: ${{ steps.plan.outputs.plan_object }}
+      plan_sha256: ${{ steps.plan.outputs.plan_sha256 }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -86,16 +86,18 @@ jobs:
         working-directory: ${{ env.LAB_DIR }}
         run: |
           set +e
-          terraform plan -lock-timeout=5m -detailed-exitcode -out=lab.tfplan
+          terraform plan -lock=false -detailed-exitcode -out=lab.tfplan
           code=$?
           set -e
           if [ "$code" -eq 1 ]; then exit 1; fi
           has_changes=$([ "$code" -eq 2 ] && echo true || echo false)
           plan_object="gs://$TF_STATE_BUCKET/plans/lab-$GITHUB_SHA-$GITHUB_RUN_ID.tfplan"
+          plan_sha256=$(sha256sum lab.tfplan | cut -d' ' -f1)
           {
             echo "## Plan for lab at ${GITHUB_SHA::7}"
             echo
-            echo "Changes: $has_changes. Approve the apply job only if this is what you expect."
+            echo "Changes: $has_changes. Plan file sha256: \`$plan_sha256\`."
+            echo "Approve the apply job only if this is what you expect."
             echo
             echo '<details><summary>Full plan</summary>'
             echo
@@ -109,6 +111,7 @@ jobs:
           fi
           echo "has_changes=$has_changes" >> "$GITHUB_OUTPUT"
           echo "plan_object=$plan_object" >> "$GITHUB_OUTPUT"
+          echo "plan_sha256=$plan_sha256" >> "$GITHUB_OUTPUT"
 
   apply:
     name: apply (lab) and nominal path test
@@ -148,8 +151,10 @@ jobs:
         working-directory: ${{ env.LAB_DIR }}
         env:
           PLAN_OBJECT: ${{ needs.plan.outputs.plan_object }}
+          PLAN_SHA256: ${{ needs.plan.outputs.plan_sha256 }}
         run: |
           gcloud storage cp "$PLAN_OBJECT" lab.tfplan
+          echo "$PLAN_SHA256  lab.tfplan" | sha256sum --check --strict
           terraform apply -lock-timeout=5m lab.tfplan
           gcloud storage rm "$PLAN_OBJECT"
 
