@@ -7,6 +7,7 @@ Root module of the lab. It enables the APIs and assembles the modules:
 | `messaging` | Positions topic, dead-letter topic and inspection subscription, producer identity |
 | `analytics` | Dataset `<prefix with underscores>` and the partitioned `positions` table (schema in `infra/schemas/positions.json`) |
 | `delivery` | BigQuery subscription from the topic to the table, its dead-letter policy and the Pub/Sub service agent's roles |
+| `observability` | Monitoring dashboard and alerts for backlog, delay, export errors and dead-letter messages |
 
 State is local until the bootstrap creates the state bucket. Then add this block inside
 `terraform { }` in `versions.tf` and run `terraform init -migrate-state`:

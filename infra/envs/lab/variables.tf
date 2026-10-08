@@ -1,6 +1,7 @@
 variable "project_id" {
   description = "GCP project of the lab, given by the instructor."
   type        = string
+  default     = "groupe3inssettp"
 }
 
 variable "region" {
@@ -12,6 +13,7 @@ variable "region" {
 variable "prefix" {
   description = "Group prefix used in every resource name, e.g. g3-movenow."
   type        = string
+  default     = "g3-movenow"
 }
 
 variable "labels" {
@@ -59,6 +61,12 @@ variable "table_deletion_protection" {
 
 variable "producer_impersonators" {
   description = "Team members allowed to run the producer as its service account, e.g. [\"user:first.last@example.com\"]."
+  type        = list(string)
+  default     = []
+}
+
+variable "notification_channels" {
+  description = "Full names of existing Cloud Monitoring notification channels. Empty list creates alerts without notifications."
   type        = list(string)
   default     = []
 }

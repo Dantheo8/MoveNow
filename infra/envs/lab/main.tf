@@ -1,27 +1,9 @@
-module "analytics" {
-  source = "../../modules/analytics"
-
-  project_id = "groupe3inssettp"
-  location   = "europe-west9"
-
-  dataset_id = "movenow"
-  table_id   = "positions"
-
-  schema = file("${path.module}/../../schemas/positions.json")
-
-  partition_field = "event_time"
-  retention_days  = 7
-
-  labels = {
-    projet        = "movenow"
-    environnement = "lab"
-  }
-}
 locals {
   services = [
     "bigquery.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
+    "monitoring.googleapis.com",
     "pubsub.googleapis.com",
   ]
 }
@@ -56,6 +38,7 @@ module "analytics" {
   schema              = file("${path.module}/../../schemas/positions.json")
   retention_days      = var.retention_days
   deletion_protection = var.table_deletion_protection
+  labels              = var.labels
 
   depends_on = [google_project_service.this]
 }
@@ -71,4 +54,17 @@ module "delivery" {
   table_id                   = module.analytics.table_full_id
   message_retention_duration = var.message_retention_duration
   max_delivery_attempts      = var.max_delivery_attempts
+}
+
+module "observability" {
+  source = "../../modules/observability"
+
+  project_id = var.project_id
+  subscription_ids = {
+    export      = module.delivery.export_subscription_id
+    dead_letter = module.messaging.dead_letter_subscription_id
+  }
+  notification_channels = var.notification_channels
+
+  depends_on = [google_project_service.this]
 }

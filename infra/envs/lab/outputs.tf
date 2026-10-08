@@ -22,3 +22,13 @@ output "producer_service_account_email" {
   description = "Identity the producer runs as."
   value       = module.messaging.producer_service_account_email
 }
+
+output "dashboard_id" {
+  description = "Cloud Monitoring dashboard for the lab pipeline."
+  value       = module.observability.dashboard_id
+}
+
+output "alert_policy_ids" {
+  description = "Cloud Monitoring alert policies for backlog, delay, export errors and dead-letter messages."
+  value       = module.observability.alert_policy_ids
+}
