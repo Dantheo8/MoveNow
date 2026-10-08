@@ -1,0 +1,46 @@
+# Validates the Terraform code on every change, without any cloud access:
+# formatting, init without a backend and validate (see scripts/terraform-validate.sh).
+# The plan, authenticated through workload identity federation, will be a separate job
+# once the bootstrap exists.
+name: Terraform
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Same version as on the team's machines; upgrade it together with required_version.
+  TERRAFORM_VERSION: 1.16.4
+  TF_IN_AUTOMATION: 'true'
+
+jobs:
+  validate:
+    name: fmt and validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Validate Terraform code
+        env:
+          # Download each provider once for all validated directories.
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/terraform-plugins
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          ./scripts/terraform-validate.sh

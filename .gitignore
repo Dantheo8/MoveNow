@@ -1,13 +1,50 @@
-
-# Terraform
+# --- Terraform ----------------------------------------------------------------
+# Providers and modules downloaded by terraform init
 **/.terraform/*
+# State lives in the GCS backend bucket, never in Git
 *.tfstate
 *.tfstate.*
+*.tfstate.lock.info
+# Plans are private CI artifacts and may contain sensitive values
+*.tfplan
+*.tfplan.json
+tfplan
+# Variable values: only terraform.tfvars.example is committed
 *.tfvars
 *.tfvars.json
-crash.log
-crash.*.log
+# Local overrides and CLI configuration
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+# DO commit .terraform.lock.hcl: it pins the provider versions
+# ...but only for root modules: child modules get one when validated locally
+**/modules/**/.terraform.lock.hcl
+
+# --- Secrets and credentials --------------------------------------------------
+# No service account keys: ADC locally, workload identity federation in CI
+.env
+.env.*
+!.env.example
+*-key.json
+*credentials*.json
+*.pem
+*.p12
+
+# --- Node ---------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+
+# --- Starter kit: producer output when run from its own folder ---------------
+movenow/producteur/*.jsonl
+movenow/producteur/progression.json
+
+# --- OS and editors -----------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+*.swp
