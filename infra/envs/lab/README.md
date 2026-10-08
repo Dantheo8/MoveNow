@@ -8,27 +8,26 @@ Root module of the lab. It enables the APIs and assembles the modules:
 | `analytics` | Dataset `<prefix with underscores>` and the partitioned `positions` table (schema in `infra/schemas/positions.json`) |
 | `delivery` | BigQuery subscription from the topic to the table, its dead-letter policy and the Pub/Sub service agent's roles |
 
-State is local until the bootstrap creates the state bucket. Then add this block inside
-`terraform { }` in `versions.tf` and run `terraform init -migrate-state`:
+The state lives in the bucket created by `infra/bootstrap` (prefix `lab`), which must be applied
+first. The bucket name is given at `init` time.
 
-```hcl
-backend "gcs" {
-  bucket = "<state-bucket>"
-  prefix = "lab"
-}
-```
+## Deploy through the CI
 
-## Deploy
+Merge into `main`: the `Terraform` workflow validates, plans, waits for an approval in the `lab`
+environment, applies the reviewed plan and runs `scripts/nominal-path-test.sh`. The destroy is the
+manual `Terraform destroy` workflow. Setup and details: `infra/bootstrap/README.md`.
+
+## Work locally
+
+Locally, plan to check a change; deploy through the CI so every apply is reviewed.
 
 ```sh
 gcloud auth application-default login       # credentials used by Terraform, no key file
 cp ../../../.env.example ../../../.env        # fill it in, then load it:
 set -a; source ../../../.env; set +a          # or copy terraform.tfvars.example to terraform.tfvars
 
-terraform init
-terraform plan -out=lab.tfplan                # read it before applying
-terraform apply lab.tfplan
-terraform plan                                # must print "No changes": no drift
+terraform init -backend-config="bucket=$TF_STATE_BUCKET"
+terraform plan
 ```
 
 The lock file `.terraform.lock.hcl` is committed. After changing a provider version, refresh it
@@ -40,7 +39,13 @@ terraform providers lock -platform=linux_amd64 -platform=darwin_arm64 -platform=
 
 ## Check the pipeline
 
-Run these from this folder.
+Run these from this folder. The CI runs the first check automatically after each apply; run it by
+hand with:
+
+```sh
+../../../scripts/nominal-path-test.sh "$GOOGLE_CLOUD_PROJECT" "$(terraform output -raw topic_name)" \
+  "$(terraform output -raw bigquery_table)" "$REGION"
+```
 
 **Nominal path and invalid messages, as the producer identity.** Your account must be listed in
 `producer_impersonators`. The batch has 50 events, 3 of them with an invalid latitude.
@@ -84,17 +89,11 @@ gcloud pubsub topics publish "$PREFIX-positions-dead-letter" --message=test \
 
 ## Destroy
 
-```sh
-terraform destroy
-```
-
-The positions table can be destroyed because `table_deletion_protection` is `false` in the lab.
-Set it to `true` to protect data that must outlive the lab. APIs stay enabled
-(`disable_on_destroy = false`). List what remains afterwards:
+Run the `Terraform destroy` workflow on `main` (type `destroy lab`, then approve), or locally
+`terraform destroy`. The positions table can be destroyed because `table_deletion_protection` is
+`false` in the lab. APIs stay enabled (`disable_on_destroy = false`) and the bootstrap is kept. List
+what remains:
 
 ```sh
-gcloud pubsub topics list --filter="name~$PREFIX"
-gcloud pubsub subscriptions list --filter="name~$PREFIX"
-gcloud iam service-accounts list --filter="email~$PREFIX"
-bq ls --project_id="$GOOGLE_CLOUD_PROJECT"
+../../../scripts/inventory.sh "$GOOGLE_CLOUD_PROJECT" "$PREFIX"
 ```

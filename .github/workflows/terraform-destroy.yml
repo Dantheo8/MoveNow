@@ -1,0 +1,154 @@
+# Manual destroy of the lab: plan the destroy, approve it in the "lab" environment, apply it, then
+# list what remains. The bootstrap (state bucket, workload identity, CI accounts) is not touched.
+name: Terraform destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type "destroy lab" to confirm
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-lab
+  cancel-in-progress: false
+
+env:
+  TERRAFORM_VERSION: 1.16.4
+  TF_IN_AUTOMATION: 'true'
+  TF_INPUT: 'false'
+  LAB_DIR: infra/envs/lab
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+  TF_VAR_region: ${{ vars.GCP_REGION }}
+  TF_VAR_prefix: ${{ vars.TF_PREFIX }}
+  TF_VAR_producer_impersonators: ${{ vars.TF_PRODUCER_IMPERSONATORS || '[]' }}
+
+jobs:
+  plan-destroy:
+    name: plan the destroy
+    if: inputs.confirm == 'destroy lab' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      plan_object: ${{ steps.plan.outputs.plan_object }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_PLAN_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Init with the remote state
+        working-directory: ${{ env.LAB_DIR }}
+        run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
+
+      - name: Plan the destroy and save it for review
+        id: plan
+        working-directory: ${{ env.LAB_DIR }}
+        run: |
+          terraform plan -destroy -lock-timeout=5m -out=destroy.tfplan
+          plan_object="gs://$TF_STATE_BUCKET/plans/lab-destroy-$GITHUB_SHA-$GITHUB_RUN_ID.tfplan"
+          {
+            echo "## Destroy plan for lab at ${GITHUB_SHA::7}"
+            echo
+            echo '<details><summary>Full plan</summary>'
+            echo
+            echo '```text'
+            terraform show -no-color destroy.tfplan
+            echo '```'
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+          gcloud storage cp destroy.tfplan "$plan_object"
+          echo "plan_object=$plan_object" >> "$GITHUB_OUTPUT"
+
+  destroy:
+    name: destroy (lab)
+    needs: plan-destroy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: lab
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_APPLY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Init with the remote state
+        working-directory: ${{ env.LAB_DIR }}
+        run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
+
+      - name: Apply the reviewed destroy plan
+        working-directory: ${{ env.LAB_DIR }}
+        env:
+          PLAN_OBJECT: ${{ needs.plan-destroy.outputs.plan_object }}
+        run: |
+          gcloud storage cp "$PLAN_OBJECT" destroy.tfplan
+          terraform apply -lock-timeout=5m destroy.tfplan
+          gcloud storage rm "$PLAN_OBJECT"
+
+  inventory:
+    name: inventory of what remains
+    needs: [plan-destroy, destroy]
+    if: always() && needs.plan-destroy.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_PLAN_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: List the remaining resources
+        run: |
+          set +e
+          ./scripts/inventory.sh "$TF_VAR_project_id" "$TF_VAR_prefix" | tee inventory.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          {
+            echo "## Inventory after destroy"
+            echo
+            echo '```text'
+            cat inventory.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"

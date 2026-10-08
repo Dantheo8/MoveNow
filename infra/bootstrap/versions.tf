@@ -7,8 +7,4 @@ terraform {
       version = "8.6.0"
     }
   }
-
-  backend "gcs" {
-    prefix = "lab"
-  }
 }
