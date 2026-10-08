@@ -60,6 +60,7 @@ module "observability" {
   source = "../../modules/observability"
 
   project_id = var.project_id
+  topic_id   = module.messaging.topic_id
   subscription_ids = {
     export      = module.delivery.export_subscription_id
     dead_letter = module.messaging.dead_letter_subscription_id

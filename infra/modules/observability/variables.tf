@@ -3,6 +3,16 @@ variable "project_id" {
   type        = string
 }
 
+variable "topic_id" {
+  description = "Nom complet du topic de positions, pour afficher les publications."
+  type        = string
+
+  validation {
+    condition     = can(regex("^projects/[^/]+/topics/[^/]+$", var.topic_id))
+    error_message = "topic_id doit avoir la forme projects/PROJET/topics/NOM."
+  }
+}
+
 variable "subscription_ids" {
   description = "Noms complets des subscriptions d'export et d'inspection dead-letter."
   type = object({

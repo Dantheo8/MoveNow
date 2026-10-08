@@ -40,6 +40,51 @@ terraform providers lock -platform=linux_amd64 -platform=darwin_arm64 -platform=
 
 ## Check the pipeline
 
+### Windows: generate a short batch
+
+From the repository root, run `gcloud auth application-default login` once, then:
+
+```powershell
+.\scripts\demo-pipeline.ps1
+```
+
+The script installs the producer dependencies if needed, publishes 10 valid positions in five
+seconds, and polls BigQuery until their `event_id` values appear. It uses the lab's default project,
+topic and table names; pass `-ProjectId`, `-Topic`, `-Table` or `-Location` if yours differ. The
+generated batch manifest is written to `movenow/producteur/lots/` and ignored by Git. Your ADC
+identity needs Pub/Sub Publisher on the topic, and your `gcloud` identity needs BigQuery Data
+Viewer on the table plus BigQuery Job User on the project. To publish as the dedicated producer
+identity, configure ADC with `gcloud auth application-default login --impersonate-service-account
+g3-movenow-producer@<project-id>.iam.gserviceaccount.com` if your account has its Token Creator
+role.
+
+For several Monitoring samples, run a **bounded five-minute load** instead:
+
+```powershell
+.\scripts\demo-pipeline.ps1 -Rate 5 -Duration 300
+```
+
+This publishes 1,500 synthetic positions, then verifies their distinct `event_id` values in
+BigQuery. Do not use `-Invalid` for the first load: the dead-letter path is a separate test.
+Monitoring samples Pub/Sub metrics roughly once a minute and can display them a few minutes later.
+
+Open the **MoveNow - Flux positions (lab)** dashboard and select the last hour. Pub/Sub metrics can
+take a few minutes to appear. The dead-letter charts are expected to stay empty for a valid batch.
+To exercise them, run `.\scripts\demo-pipeline.ps1 -Invalid 1`; that one malformed position should
+reach the inspection subscription after the configured retries. A successful script run with
+`-Invalid 1` only confirms publication and the valid rows in BigQuery; it does not wait for the
+dead-letter transfer. The chart of dead-letter transfers can have no time series before that first
+transfer, while the inspection backlog shows zero. The BigQuery integration dashboard in the console
+is separate from this custom dashboard. The GCS bucket shown elsewhere stores Terraform state and
+is not part of the vehicle data pipeline.
+
+To see the **vehicle map and event list** from the kit, start its local reader in a second
+PowerShell terminal with `.\scripts\start-tableau.ps1` from the repository root, then open
+`http://localhost:8080`. It reads the deployed BigQuery table using ADC and makes a few queries
+every 20 seconds. Stop it with Ctrl+C after the demonstration. A VM is not required for this lab
+demo; if the team later needs a permanently hosted view, the existing `movenow/tableau/Dockerfile`
+is intended for Cloud Run.
+
 Run these from this folder. The CI runs the first check automatically after each apply; run it by
 hand with:
 
