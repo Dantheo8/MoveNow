@@ -90,7 +90,7 @@ gcloud pubsub topics publish "$PREFIX-positions-dead-letter" --message=test \
 
 ## Destroy
 
-Run the `Terraform destroy` workflow on `main` (type `destroy lab`, then approve), or locally
+Run the `Terraform destroy` workflow on `main` (then approve it in `lab`), or locally
 `terraform destroy`. The positions table can be destroyed because `table_deletion_protection` is
 `false` in the lab. APIs stay enabled (`disable_on_destroy = false`) and the bootstrap is kept. List
 what remains:

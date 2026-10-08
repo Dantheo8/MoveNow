@@ -18,7 +18,7 @@ No key is created anywhere: there is no secret to store in GitHub.
 | Identity | Can be used by | Project roles | State bucket |
 | --- | --- | --- | --- |
 | `ci-plan` | `repo:<owner>/<repo>:ref:refs/heads/main` | `viewer`, `iam.securityReviewer` | `storage.objectViewer`, and `storage.objectCreator` on `plans/` only: it cannot change the state or replace a saved plan |
-| `ci-apply` | `repo:<owner>/<repo>:environment:lab` | `browser`, `bigquery.admin`, `pubsub.admin`, `serviceusage.serviceUsageAdmin` | `storage.objectAdmin` |
+| `ci-apply` | `repo:<owner>/<repo>:environment:lab` | `browser`, `bigquery.admin`, `monitoring.editor`, `pubsub.admin`, `serviceusage.serviceUsageAdmin` | `storage.objectAdmin` |
 
 Why it is built this way:
 
@@ -33,9 +33,9 @@ Why it is built this way:
   overwrite an object: plans run without the state lock, and each saved plan is a new object whose
   sha256 is shown in the run summary and checked by the apply job before applying.
 
-The apply roles are project-wide on Pub/Sub, BigQuery and APIs: narrower than Owner or Editor,
-broader than a production target would allow. Add a role to `apply_roles` when a new module needs
-one, for example `roles/monitoring.editor` for alerts.
+The apply roles are project-wide on Pub/Sub, BigQuery, Monitoring and APIs: narrower than Owner or
+Editor, broader than a production target would allow. Add a role to `apply_roles` when a new module
+needs one.
 
 ## 1. Apply
 
@@ -74,8 +74,8 @@ Until `GCP_WIF_PROVIDER` exists, the CI only runs the validation job.
 - **Deploy**: merge into `main`. The workflow validates, plans with `ci-plan` and shows the plan in
   the run summary. A reviewer approves the `apply` job, which applies that exact plan with
   `ci-apply`, then runs `scripts/nominal-path-test.sh`.
-- **Destroy**: Actions, Terraform destroy, Run workflow on `main`, type `destroy lab`. The destroy
-  plan is shown, approved in `lab`, applied, then `scripts/inventory.sh` lists what remains.
+- **Destroy**: Actions, Terraform destroy, Run workflow on `main`, then approve it in `lab`. The
+  job destroys the lab with `ci-apply`, then `scripts/inventory.sh` lists what remains.
   The bootstrap's resources, including the producer identity, are kept on purpose.
 - **Locally**: `cd infra/envs/lab && terraform init -backend-config="bucket=<state_bucket>"`.
 

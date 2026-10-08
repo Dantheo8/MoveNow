@@ -65,17 +65,8 @@ variable "table_deletion_protection" {
   default     = false
 }
 
-<<<<<<< HEAD
-variable "producer_impersonators" {
-  description = "Team members allowed to run the producer as its service account, e.g. [\"user:first.last@example.com\"]."
-  type        = list(string)
-  default     = []
-}
-
 variable "notification_channels" {
   description = "Full names of existing Cloud Monitoring notification channels. Empty list creates alerts without notifications."
   type        = list(string)
   default     = []
 }
-=======
->>>>>>> f51a847ca96f4a2601d610d61807d35edff7abf8
