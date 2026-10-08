@@ -1,5 +1,5 @@
 project_id = "groupe3inssettp"
-region     = "europe-west1"
+region     = "europe-west9"
 prefix     = "g3-movenow"
 
 labels = {

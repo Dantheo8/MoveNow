@@ -8,6 +8,7 @@ terraform {
 }
 
 locals {
+  topic_name               = regex("^projects/[^/]+/topics/([^/]+)$", var.topic_id)[0]
   export_subscription      = regex("^projects/[^/]+/subscriptions/([^/]+)$", var.subscription_ids.export)[0]
   dead_letter_subscription = regex("^projects/[^/]+/subscriptions/([^/]+)$", var.subscription_ids.dead_letter)[0]
 
@@ -19,10 +20,39 @@ resource "google_monitoring_dashboard" "pipeline" {
   project = var.project_id
 
   dashboard_json = jsonencode({
-    displayName = "MoveNow - Pub/Sub et BigQuery"
+    displayName = "MoveNow - Flux positions (lab)"
     gridLayout = {
       columns = "2"
       widgets = [
+        {
+          title = "Positions publiees (messages / 5 min)"
+          xyChart = {
+            dataSets = [{
+              timeSeriesQuery = {
+                prometheusQuery = "sum(increase({\"__name__\"=\"pubsub.googleapis.com/topic/message_sizes_count\",\"monitored_resource\"=\"pubsub_topic\",\"project_id\"=\"${var.project_id}\",\"topic_id\"=\"${local.topic_name}\"}[5m]))"
+              }
+              plotType = "LINE"
+            }]
+          }
+        },
+        {
+          title = "Requetes BigQuery executees (par minute, projet)"
+          xyChart = {
+            dataSets = [{
+              timeSeriesQuery = {
+                timeSeriesFilter = {
+                  filter = "metric.type = \"bigquery.googleapis.com/query/execution_count\" AND resource.type = \"bigquery_project\" AND resource.label.project_id = \"${var.project_id}\""
+                  aggregation = {
+                    alignmentPeriod    = "60s"
+                    perSeriesAligner   = "ALIGN_SUM"
+                    crossSeriesReducer = "REDUCE_SUM"
+                  }
+                }
+              }
+              plotType = "LINE"
+            }]
+          }
+        },
         {
           title = "Messages en attente - export BigQuery"
           xyChart = {
@@ -106,6 +136,13 @@ resource "google_monitoring_dashboard" "pipeline" {
               }
               plotType = "LINE"
             }]
+          }
+        },
+        {
+          title = "Erreurs BigQuery (y compris requetes SQL)"
+          logsPanel = {
+            filter        = "severity>=ERROR AND (resource.type=\"bigquery_project\" OR resource.type=\"bigquery_resource\")"
+            resourceNames = ["projects/${var.project_id}"]
           }
         }
       ]
