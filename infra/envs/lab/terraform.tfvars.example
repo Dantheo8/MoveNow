@@ -11,6 +11,7 @@ labels = {
 
 message_retention_duration = "604800s"
 max_delivery_attempts      = 5
+retention_days             = 7
 
 producer_impersonators = [
   "user:first.last@example.com",

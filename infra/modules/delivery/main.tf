@@ -29,9 +29,14 @@ resource "google_pubsub_topic_iam_member" "dead_letter_publisher" {
 }
 
 resource "google_pubsub_subscription" "export" {
-  project = var.project_id
-  name    = var.subscription_name
-  topic   = var.topic_id
+  project                    = var.project_id
+  name                       = var.subscription_name
+  topic                      = var.topic_id
+  message_retention_duration = var.message_retention_duration
+
+  expiration_policy {
+    ttl = ""
+  }
 
   bigquery_config {
     table            = var.table_id

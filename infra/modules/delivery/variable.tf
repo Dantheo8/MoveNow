@@ -49,6 +49,20 @@ variable "service_agent" {
   }
 }
 
+variable "message_retention_duration" {
+  description = "Durée de conservation des messages non acquittés : la panne de traitement tolérée sans perte."
+  type        = string
+  default     = "604800s"
+
+  validation {
+    condition = can(regex("^[0-9]+s$", var.message_retention_duration)) && try(
+      tonumber(trimsuffix(var.message_retention_duration, "s")) >= 600 &&
+      tonumber(trimsuffix(var.message_retention_duration, "s")) <= 2678400,
+    false)
+    error_message = "message_retention_duration doit être comprise entre 600s (10 minutes) et 2678400s (31 jours)."
+  }
+}
+
 variable "retry_minimum_backoff" {
   description = "Délai minimal entre deux tentatives de livraison."
   type        = string

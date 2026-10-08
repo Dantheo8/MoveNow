@@ -34,7 +34,7 @@ variable "labels" {
 }
 
 variable "message_retention_duration" {
-  description = "Processing outage the pipeline tolerates without losing messages (main subscription retention)."
+  description = "Processing outage the pipeline tolerates without losing messages: retention of the BigQuery subscription."
   type        = string
   default     = "604800s"
 }
@@ -45,14 +45,10 @@ variable "max_delivery_attempts" {
   default     = 5
 }
 
-variable "bigquery_table" {
-  description = "Destination table of the positions. Leave null until the table exists: the main subscription stays a pull subscription."
-  type = object({
-    project    = string
-    dataset_id = string
-    table_id   = string
-  })
-  default = null
+variable "retention_days" {
+  description = "Days of position history kept in BigQuery, from the scoping step."
+  type        = number
+  default     = 7
 }
 
 variable "producer_impersonators" {

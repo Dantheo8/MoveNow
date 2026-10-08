@@ -8,23 +8,8 @@ output "topic_name" {
   value       = google_pubsub_topic.positions.name
 }
 
-output "subscription_id" {
-  description = "Full id of the main subscription."
-  value       = google_pubsub_subscription.positions.id
-}
-
-output "subscription_name" {
-  description = "Short name of the main subscription: the backlog and oldest unacked message age alerts watch it."
-  value       = google_pubsub_subscription.positions.name
-}
-
-output "delivery_mode" {
-  description = "bigquery when the main subscription writes to the table, pull otherwise."
-  value       = var.bigquery_table == null ? "pull" : "bigquery"
-}
-
 output "dead_letter_topic_id" {
-  description = "Full id of the dead-letter topic."
+  description = "Full id of the dead-letter topic, used by the delivery subscription's dead-letter policy."
   value       = google_pubsub_topic.dead_letter.id
 }
 
@@ -43,7 +28,8 @@ output "producer_service_account_email" {
   value       = google_service_account.producer.email
 }
 
-output "pubsub_service_agent" {
-  description = "IAM member of the Pub/Sub service agent, which dead-letters messages and writes to BigQuery."
-  value       = local.pubsub_service_agent
+output "pubsub_service_agent_email" {
+  description = "Email of the Pub/Sub service agent, which writes to BigQuery and dead-letters messages. Available once the topics exist, so that Google has provisioned the agent before anyone grants it a role."
+  value       = local.pubsub_service_agent_email
+  depends_on  = [google_pubsub_topic.positions, google_pubsub_topic.dead_letter]
 }

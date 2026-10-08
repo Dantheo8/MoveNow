@@ -3,14 +3,14 @@ output "topic_name" {
   value       = module.messaging.topic_name
 }
 
-output "subscription_name" {
-  description = "Main subscription, watched by the backlog and oldest unacked message age alerts."
-  value       = module.messaging.subscription_name
+output "subscription_id" {
+  description = "BigQuery subscription, watched by the backlog and oldest unacked message age alerts."
+  value       = module.delivery.export_subscription_id
 }
 
-output "delivery_mode" {
-  description = "bigquery once bigquery_table is set, pull before that."
-  value       = module.messaging.delivery_mode
+output "bigquery_table" {
+  description = "Table holding the position history, project.dataset.table."
+  value       = module.analytics.table_full_id
 }
 
 output "dead_letter_subscription_name" {
