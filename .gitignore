@@ -9,6 +9,9 @@
 *.tfplan
 *.tfplan.json
 tfplan
+# Variable values: only terraform.tfvars.example is committed
+*.tfvars
+*.tfvars.json
 # Local overrides and CLI configuration
 override.tf
 override.tf.json
