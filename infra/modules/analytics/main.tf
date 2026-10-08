@@ -24,5 +24,5 @@ resource "google_bigquery_table" "this" {
     expiration_ms = var.retention_days * 24 * 60 * 60 * 1000
   }
 
-  deletion_protection = true
+  deletion_protection = var.deletion_protection
 }

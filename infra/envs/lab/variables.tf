@@ -51,6 +51,12 @@ variable "retention_days" {
   default     = 7
 }
 
+variable "table_deletion_protection" {
+  description = "Prevent Terraform from deleting the positions table. Off in the lab, which must be destroyed at the end."
+  type        = bool
+  default     = false
+}
+
 variable "producer_impersonators" {
   description = "Team members allowed to run the producer as its service account, e.g. [\"user:first.last@example.com\"]."
   type        = list(string)

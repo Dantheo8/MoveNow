@@ -30,12 +30,13 @@ module "messaging" {
 module "analytics" {
   source = "../../modules/analytics"
 
-  project_id     = var.project_id
-  location       = var.region
-  dataset_id     = replace(var.prefix, "-", "_")
-  table_id       = "positions"
-  schema         = file("${path.module}/../../schemas/positions.json")
-  retention_days = var.retention_days
+  project_id          = var.project_id
+  location            = var.region
+  dataset_id          = replace(var.prefix, "-", "_")
+  table_id            = "positions"
+  schema              = file("${path.module}/../../schemas/positions.json")
+  retention_days      = var.retention_days
+  deletion_protection = var.table_deletion_protection
 
   depends_on = [google_project_service.this]
 }

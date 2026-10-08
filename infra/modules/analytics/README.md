@@ -13,6 +13,7 @@ des véhicules, avec leur schéma, leur partitionnement et leur expiration.
 - partition_field : champ utilisé pour le partitionnement.
 - retention_days : durée de conservation des partitions en jours.
 - labels : étiquettes des ressources.
+- deletion_protection : empêche la suppression de la table par Terraform (true par défaut).
 
 ## Sorties prévues
 - dataset_id : identifiant du dataset créé.

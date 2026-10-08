@@ -88,8 +88,8 @@ gcloud pubsub topics publish "$PREFIX-positions-dead-letter" --message=test \
 terraform destroy
 ```
 
-The `analytics` table has `deletion_protection = true`: set it to `false` and apply before
-destroying, otherwise the destroy stops at the table. APIs stay enabled
+The positions table can be destroyed because `table_deletion_protection` is `false` in the lab.
+Set it to `true` to protect data that must outlive the lab. APIs stay enabled
 (`disable_on_destroy = false`). List what remains afterwards:
 
 ```sh
