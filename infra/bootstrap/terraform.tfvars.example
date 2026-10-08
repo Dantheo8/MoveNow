@@ -1,0 +1,14 @@
+project_id        = "groupe3inssettp"
+region            = "europe-west9"
+prefix            = "g3-movenow"
+github_repository = "Dantheo8/MoveNow"
+
+github_repository_id       = "1408728275"
+github_repository_owner_id = "146971587"
+
+deploy_branch      = "main"
+deploy_environment = "lab"
+
+producer_impersonators = [
+  "user:first.last@example.com",
+]

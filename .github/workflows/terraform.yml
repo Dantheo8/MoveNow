@@ -1,26 +1,26 @@
-# Validates the Terraform code on every change, without any cloud access:
-# formatting, init without a backend and validate (see scripts/terraform-validate.sh).
-# The plan, authenticated through workload identity federation, will be a separate job
-# once the bootstrap exists.
+# Every change: fmt and validate without cloud access.
+# Push to main: plan with the read-only CI identity, then, after approval in the "lab" environment,
+# apply exactly that plan and run the nominal path test. See infra/bootstrap/README.md for the setup.
 name: Terraform
 
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: terraform-validate-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
-  # Same version as on the team's machines; upgrade it together with required_version.
   TERRAFORM_VERSION: 1.16.4
   TF_IN_AUTOMATION: 'true'
+  TF_INPUT: 'false'
+  LAB_DIR: infra/envs/lab
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+  TF_VAR_region: ${{ vars.GCP_REGION }}
+  TF_VAR_prefix: ${{ vars.TF_PREFIX }}
 
 jobs:
   validate:
@@ -39,8 +39,140 @@ jobs:
 
       - name: Validate Terraform code
         env:
-          # Download each provider once for all validated directories.
           TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/terraform-plugins
         run: |
           mkdir -p "$TF_PLUGIN_CACHE_DIR"
           ./scripts/terraform-validate.sh
+
+  plan:
+    name: plan (lab)
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.GCP_WIF_PROVIDER != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: terraform-lab
+      cancel-in-progress: false
+    outputs:
+      has_changes: ${{ steps.plan.outputs.has_changes }}
+      plan_object: ${{ steps.plan.outputs.plan_object }}
+      plan_sha256: ${{ steps.plan.outputs.plan_sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_PLAN_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Init with the remote state
+        working-directory: ${{ env.LAB_DIR }}
+        run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
+
+      - name: Plan and save it for review
+        id: plan
+        working-directory: ${{ env.LAB_DIR }}
+        run: |
+          set +e
+          terraform plan -lock=false -detailed-exitcode -out=lab.tfplan
+          code=$?
+          set -e
+          if [ "$code" -eq 1 ]; then exit 1; fi
+          has_changes=$([ "$code" -eq 2 ] && echo true || echo false)
+          plan_object="gs://$TF_STATE_BUCKET/plans/lab-$GITHUB_SHA-$GITHUB_RUN_ID.tfplan"
+          plan_sha256=$(sha256sum lab.tfplan | cut -d' ' -f1)
+          {
+            echo "## Plan for lab at ${GITHUB_SHA::7}"
+            echo
+            echo "Changes: $has_changes. Plan file sha256: \`$plan_sha256\`."
+            echo "Approve the apply job only if this is what you expect."
+            echo
+            echo '<details><summary>Full plan</summary>'
+            echo
+            echo '```text'
+            terraform show -no-color lab.tfplan
+            echo '```'
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$has_changes" = true ]; then
+            gcloud storage cp lab.tfplan "$plan_object"
+          fi
+          echo "has_changes=$has_changes" >> "$GITHUB_OUTPUT"
+          echo "plan_object=$plan_object" >> "$GITHUB_OUTPUT"
+          echo "plan_sha256=$plan_sha256" >> "$GITHUB_OUTPUT"
+
+  apply:
+    name: apply (lab) and nominal path test
+    needs: plan
+    if: needs.plan.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: lab
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: terraform-lab
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_APPLY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Init with the remote state
+        working-directory: ${{ env.LAB_DIR }}
+        run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
+
+      - name: Apply the reviewed plan
+        working-directory: ${{ env.LAB_DIR }}
+        env:
+          PLAN_OBJECT: ${{ needs.plan.outputs.plan_object }}
+          PLAN_SHA256: ${{ needs.plan.outputs.plan_sha256 }}
+        run: |
+          gcloud storage cp "$PLAN_OBJECT" lab.tfplan
+          echo "$PLAN_SHA256  lab.tfplan" | sha256sum --check --strict
+          terraform apply -lock-timeout=5m lab.tfplan
+          gcloud storage rm "$PLAN_OBJECT"
+
+      - name: Read the outputs
+        id: outputs
+        working-directory: ${{ env.LAB_DIR }}
+        run: |
+          echo "topic=$(terraform output -raw topic_name)" >> "$GITHUB_OUTPUT"
+          echo "table=$(terraform output -raw bigquery_table)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: movenow/producteur/package-lock.json
+
+      - name: Nominal path test
+        env:
+          TOPIC: ${{ steps.outputs.outputs.topic }}
+          TABLE: ${{ steps.outputs.outputs.table }}
+        run: ./scripts/nominal-path-test.sh "$TF_VAR_project_id" "$TOPIC" "$TABLE" "$TF_VAR_region"

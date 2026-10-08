@@ -24,8 +24,8 @@ output "dead_letter_subscription_name" {
 }
 
 output "producer_service_account_email" {
-  description = "Identity the producer runs as."
-  value       = google_service_account.producer.email
+  description = "Identity the producer runs as, allowed to publish to the positions topic."
+  value       = var.producer_service_account_email
 }
 
 output "pubsub_service_agent_email" {

@@ -39,8 +39,12 @@ variable "dead_letter_message_retention_duration" {
   }
 }
 
-variable "producer_impersonators" {
-  description = "Members allowed to run the producer as its service account, without any key, e.g. [\"user:first.last@example.com\"]."
-  type        = list(string)
-  default     = []
+variable "producer_service_account_email" {
+  description = "Identity the producer runs as, created by the bootstrap. It gets publish rights on the positions topic only."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z0-9-]+\\.iam\\.gserviceaccount\\.com$", var.producer_service_account_email))
+    error_message = "producer_service_account_email must be a service account email."
+  }
 }
