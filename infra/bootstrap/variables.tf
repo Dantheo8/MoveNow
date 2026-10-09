@@ -111,6 +111,7 @@ variable "apply_roles" {
   default = [
     "roles/browser",
     "roles/bigquery.admin",
+    "roles/monitoring.editor",
     "roles/pubsub.admin",
     "roles/serviceusage.serviceUsageAdmin",
   ]

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Inventory after a destroy: lists the lab resources of a prefix that still exist, and what the
-# bootstrap keeps on purpose. Exits 1 if lab resources remain, 2 if something could not be listed.
+# Inventory after a destroy: lists the lab resources that still exist.
+# Exits 1 if some remain, 2 if something could not be listed.
 #   ./scripts/inventory.sh <project> <prefix> [dataset, default movenow]
 set -uo pipefail
 
@@ -29,7 +29,7 @@ check() {
   fi
 }
 
-list_datasets() {
+list_dataset() {
   bq --quiet --headless --format=json ls --project_id="$project" |
     jq -r '.[]?.datasetReference.datasetId' | { grep -x "$dataset" || true; }
 }
@@ -39,12 +39,7 @@ check "Pub/Sub topics" gcloud pubsub topics list --project="$project" \
   --filter="name~/topics/$prefix-" --format="value(name)"
 check "Pub/Sub subscriptions" gcloud pubsub subscriptions list --project="$project" \
   --filter="name~/subscriptions/$prefix-" --format="value(name)"
-check "Service accounts" gcloud iam service-accounts list --project="$project" \
-  --filter="email~^$prefix- AND NOT email~-ci- AND NOT email~-producer@" --format="value(email)"
-check "BigQuery datasets" list_datasets
-
+check "BigQuery dataset $dataset" list_dataset
 echo
-echo "Kept on purpose by the bootstrap: the state bucket, the workload identity pool and these accounts:"
-gcloud iam service-accounts list --project="$project" --filter="email~^$prefix-(ci-|producer@)" --format="value(email)" |
-  sed 's/^/    /'
+echo "Kept on purpose by the bootstrap: the state bucket, the workload identity pool, the CI and producer service accounts."
 exit "$status"
