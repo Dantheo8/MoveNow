@@ -171,8 +171,20 @@ resource "google_storage_bucket_iam_member" "state_plan_save_plans" {
   }
 }
 
-resource "google_storage_bucket_iam_member" "state_apply" {
+resource "google_storage_bucket_iam_member" "state_apply_read" {
+  bucket = google_storage_bucket.state.name
+  role   = "roles/storage.objectViewer"
+  member = google_service_account.apply.member
+}
+
+resource "google_storage_bucket_iam_member" "state_apply_write" {
   bucket = google_storage_bucket.state.name
   role   = "roles/storage.objectAdmin"
   member = google_service_account.apply.member
+
+  condition {
+    title       = "lab-state-and-plans-only"
+    description = "Write the lab state and the saved plans, never the bootstrap state."
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.state.name}/objects/lab/\") || resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.state.name}/objects/plans/\")"
+  }
 }
