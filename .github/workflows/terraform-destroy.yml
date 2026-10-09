@@ -37,7 +37,7 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v3
       - uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.16.4
+          terraform_version: 1.16.5
           terraform_wrapper: false
       - run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
       - run: terraform destroy -auto-approve

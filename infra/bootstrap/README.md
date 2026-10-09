@@ -5,7 +5,7 @@ applied by hand, once, by someone with the Owner role on the project, and the la
 
 | Resource | Purpose |
 | --- | --- |
-| State bucket `<project>-<prefix>-tfstate` | Remote state of the lab (prefix `lab`) and saved plans (`plans/`, deleted after 3 days). Private, versioned, uniform access, public access prevented |
+| State bucket (`state_bucket_name`, here `bucket-gcs-movenow`) | Remote state of the lab (prefix `lab`) and saved plans (`plans/`, deleted after 3 days). Private, versioned, uniform access, public access prevented |
 | Workload identity pool and GitHub provider | Lets GitHub Actions exchange its short-lived OIDC token for Google credentials. Only tokens carrying the repository's and owner's numeric ids, issued for `deploy_branch`, are accepted |
 | `<prefix>-ci-plan` service account | Plan jobs. Reads the project and the state; can only add new objects under `plans/` |
 | `<prefix>-ci-apply` service account | Apply and destroy jobs. Usable only by jobs of the `deploy_environment` GitHub environment, which requires an approval |
@@ -44,6 +44,23 @@ cd infra/bootstrap
 cp terraform.tfvars.example terraform.tfvars    # fill it in; ignored by Git
 gcloud auth application-default login
 terraform init
+```
+
+**In this project, two resources already exist**: the state bucket `bucket-gcs-movenow`, which
+holds the lab state, and the producer account. Import them before the first apply, so the
+bootstrap manages them instead of trying to create them again:
+
+```sh
+terraform import google_storage_bucket.state bucket-gcs-movenow
+terraform import google_service_account.producer \
+  projects/groupe3inssettp/serviceAccounts/g3-movenow-producer@groupe3inssettp.iam.gserviceaccount.com
+```
+
+Then plan, and check it before applying: it must create the identity pool, the CI accounts and
+their permissions, and only **update in place** the bucket (versioning, lifecycle rules) and the
+producer account (description). It must not destroy or replace anything.
+
+```sh
 terraform plan -out=bootstrap.tfplan
 terraform apply bootstrap.tfplan
 terraform output github_variables

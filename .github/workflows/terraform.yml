@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.16.4
+          terraform_version: 1.16.5
           terraform_wrapper: false
       - run: ./scripts/terraform-validate.sh
 
@@ -50,7 +50,7 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v3
       - uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.16.4
+          terraform_version: 1.16.5
           terraform_wrapper: false
       - run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
       - name: Plan, show it for review, store it in the private bucket
@@ -81,7 +81,7 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v3
       - uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.16.4
+          terraform_version: 1.16.5
           terraform_wrapper: false
       - run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
       - name: Apply the reviewed plan, after checking it was not changed
