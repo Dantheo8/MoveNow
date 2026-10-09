@@ -27,14 +27,17 @@ expected=$(grep -c . "$expected_file")
 
 query() {
   bq --quiet --headless --format=csv --location="$location" --project_id="$project" \
-    query --nouse_legacy_sql "$1" | tail -n +2
+    query --nouse_legacy_sql "$1"
+}
+count() {
+  query "$1" | tail -n 1
 }
 filter="WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR) AND STARTS_WITH(event_id, '$batch-')"
 
 echo "== Waiting for the $expected event_ids in $table"
 deadline=$((SECONDS + timeout_seconds))
 while :; do
-  found=$(query "SELECT COUNT(DISTINCT event_id) FROM \`$table\` $filter")
+  found=$(count "SELECT COUNT(DISTINCT event_id) FROM \`$table\` $filter")
   echo "$found / $expected"
   if [ "$found" -ge "$expected" ]; then
     break
@@ -42,11 +45,11 @@ while :; do
   if [ "$SECONDS" -ge "$deadline" ]; then
     echo "Timed out after ${timeout_seconds}s. Missing event_ids:"
     comm -23 <(sed -E 's/.*"event_id":"([^"]+)".*/\1/' "$expected_file" | sort) \
-      <(query "SELECT DISTINCT event_id FROM \`$table\` $filter" | sort)
+      <(query "SELECT DISTINCT event_id FROM \`$table\` $filter" | grep -- "^$batch-" | sort)
     exit 1
   fi
   sleep "$poll_seconds"
 done
 
-duplicates=$(query "SELECT COUNT(*) - COUNT(DISTINCT event_id) FROM \`$table\` $filter")
+duplicates=$(count "SELECT COUNT(*) - COUNT(DISTINCT event_id) FROM \`$table\` $filter")
 echo "All $expected event_ids of $batch reached BigQuery ($duplicates duplicate rows)."
