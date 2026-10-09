@@ -18,7 +18,7 @@ No key is created anywhere: there is no secret to store in GitHub.
 | Identity | Can be used by | Project roles | State bucket |
 | --- | --- | --- | --- |
 | `ci-plan` | `repo:<owner>/<repo>:ref:refs/heads/main` | `viewer`, `iam.securityReviewer` | `storage.objectViewer`, and `storage.objectCreator` on `plans/` only: it cannot change the state or replace a saved plan |
-| `ci-apply` | `repo:<owner>/<repo>:environment:lab` | `browser`, `bigquery.admin`, `monitoring.editor`, `pubsub.admin`, `serviceusage.serviceUsageAdmin` | `storage.objectAdmin` |
+| `ci-apply` | `repo:<owner>/<repo>:environment:lab` | `browser`, `bigquery.admin`, `monitoring.editor`, `pubsub.admin`, `serviceusage.serviceUsageAdmin` | `storage.objectViewer`, and `storage.objectAdmin` on `lab/` and `plans/` only: it cannot change the bootstrap state |
 
 Why it is built this way:
 
