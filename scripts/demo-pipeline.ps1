@@ -5,11 +5,12 @@ param(
   [string]$Location = 'europe-west9',
   [ValidateRange(1, 100)][int]$Rate = 2,
   [ValidateRange(1, 600)][int]$Duration = 5,
-  [ValidateRange(0, 1000)][int]$Invalid = 0,
+  [Alias('Invalide')][ValidateRange(0, 1000)][int]$Invalid = 0,
   [ValidateRange(10, 600)][int]$TimeoutSeconds = 180
 )
 
 $ErrorActionPreference = 'Stop'
+if ($args.Count -gt 0) { throw "Paramètres inconnus : $($args -join ' ')" }
 
 foreach ($command in @('node', 'npm', 'bq')) {
   if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {

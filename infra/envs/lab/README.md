@@ -80,8 +80,9 @@ is not part of the vehicle data pipeline.
 
 To see the **vehicle map and event list** from the kit, start its local reader in a second
 PowerShell terminal with `.\scripts\start-tableau.ps1` from the repository root, then open
-`http://localhost:8080`. It reads the deployed BigQuery table using ADC and makes a few queries
-every 20 seconds. Stop it with Ctrl+C after the demonstration. A VM is not required for this lab
+`http://localhost:8080`. Its throughput chart groups positions into 10-second intervals and reads
+the deployed BigQuery table every 10 seconds by default. Pass `-RefreshSeconds 20` to make fewer
+BigQuery queries; the chart intervals stay at 10 seconds. Stop it with Ctrl+C after the demonstration. A VM is not required for this lab
 demo; if the team later needs a permanently hosted view, the existing `movenow/tableau/Dockerfile`
 is intended for Cloud Run.
 

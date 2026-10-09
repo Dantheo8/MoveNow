@@ -105,6 +105,24 @@ resource "google_monitoring_dashboard" "pipeline" {
           }
         },
         {
+          title = "Echecs d'ecriture BigQuery (tentatives, schema invalide)"
+          xyChart = {
+            dataSets = [{
+              timeSeriesQuery = {
+                timeSeriesFilter = {
+                  filter = "metric.type = \"pubsub.googleapis.com/subscription/push_request_count\" AND metric.label.response_code = \"invalid_argument\" AND ${local.export_filter}"
+                  aggregation = {
+                    alignmentPeriod    = "60s"
+                    perSeriesAligner   = "ALIGN_SUM"
+                    crossSeriesReducer = "REDUCE_SUM"
+                  }
+                }
+              }
+              plotType = "LINE"
+            }]
+          }
+        },
+        {
           title = "Messages transferes en dead-letter"
           xyChart = {
             dataSets = [{
@@ -139,7 +157,7 @@ resource "google_monitoring_dashboard" "pipeline" {
           }
         },
         {
-          title = "Erreurs BigQuery (y compris requetes SQL)"
+          title = "Erreurs des requetes BigQuery (SQL, distinctes de l'export)"
           logsPanel = {
             filter        = "severity>=ERROR AND (resource.type=\"bigquery_project\" OR resource.type=\"bigquery_resource\")"
             resourceNames = ["projects/${var.project_id}"]

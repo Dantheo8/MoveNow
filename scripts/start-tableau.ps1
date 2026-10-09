@@ -4,6 +4,7 @@ param(
   [string]$Location = 'europe-west9',
   [string]$Subscription = 'g3-movenow-positions-bq',
   [string]$DeadLetterSubscription = '',
+  [ValidateRange(5, 60)][int]$RefreshSeconds = 1,
   [int]$Port = 8080
 )
 
@@ -19,6 +20,7 @@ $env:BQ_LOCATION = $Location
 $env:PORT = "$Port"
 $env:SUBSCRIPTION = $Subscription
 $env:DEAD_LETTER_SUBSCRIPTION = $DeadLetterSubscription
+$env:REFRESH_SECONDS = "$RefreshSeconds"
 
 $tableauDir = Join-Path $PSScriptRoot '..\movenow\tableau'
 Push-Location $tableauDir
