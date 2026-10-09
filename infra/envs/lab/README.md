@@ -14,9 +14,8 @@ first. The bucket name is given at `init` time.
 
 ## Deploy through the CI
 
-Merge into `main`: the `Terraform` workflow validates, plans, waits for an approval in the `lab`
-environment, applies the reviewed plan and runs `scripts/nominal-path-test.sh`. The destroy is the
-manual `Terraform destroy` workflow. Setup and details: `infra/bootstrap/README.md`.
+Merge into `main`: the `Terraform` workflow validates, plans, applies that exact plan and runs
+`scripts/nominal-path-test.sh`. The destroy is the manual `Terraform destroy` workflow. Setup and details: `infra/bootstrap/README.md`.
 
 ## Work locally
 
@@ -136,7 +135,7 @@ gcloud pubsub topics publish "$PREFIX-positions-dead-letter" --message=test \
 
 ## Destroy
 
-Run the `Terraform destroy` workflow on `main` (then approve it in `lab`), or locally
+Run the `Terraform destroy` workflow on `main`, or locally
 `terraform destroy`. The positions table can be destroyed because `table_deletion_protection` is
 `false` in the lab. APIs stay enabled (`disable_on_destroy = false`) and the bootstrap is kept. List
 what remains:

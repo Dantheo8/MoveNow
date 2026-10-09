@@ -8,7 +8,7 @@ applied by hand, once, by someone with the Owner role on the project, and the la
 | State bucket (`state_bucket_name`, here `bucket-gcs-movenow`) | Remote state of the lab (prefix `lab`) and saved plans (`plans/`, deleted after 3 days). Private, versioned, uniform access, public access prevented |
 | Workload identity pool and GitHub provider | Lets GitHub Actions exchange its short-lived OIDC token for Google credentials. Only tokens carrying the repository's and owner's numeric ids, issued for `deploy_branch`, are accepted |
 | `<prefix>-ci-plan` service account | Plan jobs. Reads the project and the state; can only add new objects under `plans/` |
-| `<prefix>-ci-apply` service account | Apply and destroy jobs. Usable only by jobs of the `deploy_environment` GitHub environment, which requires an approval |
+| `<prefix>-ci-apply` service account | Apply and destroy jobs. Usable only by workflows running on `deploy_branch` |
 | `<prefix>-producer` service account | Identity the producer runs as. The lab grants it publish rights on the positions topic; `producer_impersonators` may act as it |
 
 No key is created anywhere: there is no secret to store in GitHub.
@@ -17,15 +17,15 @@ No key is created anywhere: there is no secret to store in GitHub.
 
 | Identity | Can be used by | Project roles | State bucket |
 | --- | --- | --- | --- |
-| `ci-plan` | `repo:<owner>/<repo>:ref:refs/heads/main` | `viewer`, `iam.securityReviewer` | `storage.objectViewer`, and `storage.objectCreator` on `plans/` only: it cannot change the state or replace a saved plan |
-| `ci-apply` | `repo:<owner>/<repo>:environment:lab` | `browser`, `bigquery.admin`, `monitoring.editor`, `pubsub.admin`, `serviceusage.serviceUsageAdmin` | `storage.objectViewer`, and `storage.objectAdmin` on `lab/` and `plans/` only: it cannot change the bootstrap state |
+| `ci-plan` | `repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:refs/heads/main` | `viewer`, `iam.securityReviewer` | `storage.objectViewer`, and `storage.objectCreator` on `plans/` only: it cannot change the state or replace a saved plan |
+| `ci-apply` | `repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:refs/heads/main` | `browser`, `bigquery.admin`, `monitoring.editor`, `pubsub.admin`, `serviceusage.serviceUsageAdmin` | `storage.objectViewer`, and `storage.objectAdmin` on `lab/` and `plans/` only: it cannot change the bootstrap state |
 
 Why it is built this way:
 
 - **Immutable ids.** The trust condition checks `repository_id` and `repository_owner_id`, not names:
   if the repository were deleted or renamed, someone recreating the same name would get other ids.
-  It also requires the token to come from `deploy_branch`, so a job on another branch cannot use
-  the `lab` environment to obtain the apply identity.
+  It also requires the token to come from `deploy_branch`: only workflows on `main` get
+  credentials, so only people who can push to `main` can deploy.
 - **No escalation.** The apply identity has no role able to change service account policies, so
   it cannot grant itself access to another identity. That is why the bootstrap, run by an Owner,
   creates the producer identity and its impersonation rights.
@@ -71,20 +71,17 @@ bucket's encryption settings are left to Google's defaults (`ignore_changes`).
 
 ## 2. Configure GitHub (repository admin)
 
-1. **Settings, Secrets and variables, Actions, Variables**: create one repository variable per
-   entry of `terraform output github_variables`.
-2. **Settings, Environments, New environment `lab`**: add required reviewers (someone other than the
-   author of the change) and restrict deployment branches to `main`.
+**Settings, Secrets and variables, Actions, Variables**: create one repository variable per entry
+of `terraform output github_variables`.
 
 Until `GCP_WIF_PROVIDER` exists, the CI only runs the validation job.
 
 ## 3. Use
 
 - **Deploy**: merge into `main`. The workflow validates, plans with `ci-plan` and shows the plan in
-  the run summary. A reviewer approves the `apply` job, which applies that exact plan with
-  `ci-apply`, then runs `scripts/nominal-path-test.sh`.
-- **Destroy**: Actions, Terraform destroy, Run workflow on `main`, then approve it in `lab`. The
-  job destroys the lab with `ci-apply`, then `scripts/inventory.sh` lists what remains.
+  the run summary. The `apply` job then applies that exact plan with `ci-apply` and runs
+  `scripts/nominal-path-test.sh`.
+- **Destroy**: Actions, Terraform destroy, Run workflow on `main`. The job destroys the lab with `ci-apply`, then `scripts/inventory.sh` lists what remains.
   The bootstrap's resources, including the producer identity, are kept on purpose.
 - **Locally**: `cd infra/envs/lab && terraform init -backend-config="bucket=<state_bucket>"`.
 

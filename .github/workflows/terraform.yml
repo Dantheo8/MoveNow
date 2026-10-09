@@ -1,5 +1,5 @@
 # Every change: fmt and validate, without cloud access.
-# Push to main: plan, wait for an approval in the "lab" environment, apply that exact plan, test.
+# Push to main: plan, apply that exact plan, then test.
 name: Terraform
 
 on:
@@ -65,7 +65,6 @@ jobs:
   apply:
     needs: plan
     runs-on: ubuntu-latest
-    environment: lab
     permissions:
       contents: read
       id-token: write

@@ -1,4 +1,4 @@
-# Manual destroy: run it from the Actions tab on main, approve it in the "lab" environment.
+# Manual destroy: run it from the Actions tab on main.
 # It then lists what remains. The bootstrap (state bucket, identities) is not touched.
 name: Terraform destroy
 
@@ -20,7 +20,6 @@ jobs:
   destroy:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: lab
     permissions:
       contents: read
       id-token: write
