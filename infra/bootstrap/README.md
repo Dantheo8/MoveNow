@@ -94,6 +94,10 @@ Until `GCP_WIF_PROVIDER` exists, the CI only runs the validation job.
   prefix fails during that time.
 - `github_repository` is case-sensitive; get the two ids with
   `gh api repos/OWNER/NAME --jq '.id, .owner.id'`.
+- This repository uses GitHub's immutable OIDC subjects: jobs are identified as
+  `repo:OWNER@OWNER_ID/NAME@REPO_ID:ref:refs/heads/main`, not `repo:OWNER/NAME:...`. Check with
+  `gh api repos/OWNER/NAME/actions/oidc/customization/sub`. A mismatch shows up in the CI as
+  `Permission 'iam.serviceAccounts.getAccessToken' denied`.
 - To let someone run the producer as its identity, add them to `producer_impersonators` and
   re-apply the bootstrap.
 - The repository is public: workflow logs and the plan shown in the run summary are public. Plan

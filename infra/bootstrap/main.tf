@@ -10,9 +10,11 @@ locals {
 
   state_bucket_name = coalesce(var.state_bucket_name, "${var.project_id}-${var.prefix}-tfstate")
 
-  github_subject  = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/subject/repo:${var.github_repository}"
-  plan_principal  = "${local.github_subject}:ref:refs/heads/${var.deploy_branch}"
-  apply_principal = "${local.github_subject}:environment:${var.deploy_environment}"
+  repository_owner = split("/", var.github_repository)[0]
+  repository_name  = split("/", var.github_repository)[1]
+  github_subject   = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/subject/repo:${local.repository_owner}@${var.github_repository_owner_id}/${local.repository_name}@${var.github_repository_id}"
+  plan_principal   = "${local.github_subject}:ref:refs/heads/${var.deploy_branch}"
+  apply_principal  = "${local.github_subject}:environment:${var.deploy_environment}"
 }
 
 resource "google_project_service" "this" {
