@@ -1,0 +1,101 @@
+# Every change: fmt and validate, without cloud access.
+# Push to main: plan, wait for an approval in the "lab" environment, apply that exact plan, test.
+name: Terraform
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TF_INPUT: 'false'
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+  TF_VAR_region: ${{ vars.GCP_REGION }}
+  TF_VAR_prefix: ${{ vars.TF_PREFIX }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.5
+          terraform_wrapper: false
+      - run: ./scripts/terraform-validate.sh
+
+  plan:
+    needs: validate
+    if: github.ref == 'refs/heads/main' && vars.GCP_WIF_PROVIDER != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency: terraform-lab
+    outputs:
+      plan_sha256: ${{ steps.plan.outputs.plan_sha256 }}
+    defaults:
+      run:
+        working-directory: infra/envs/lab
+    steps:
+      - uses: actions/checkout@v7
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_PLAN_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.5
+          terraform_wrapper: false
+      - run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
+      - name: Plan, show it for review, store it in the private bucket
+        id: plan
+        run: |
+          terraform plan -lock=false -out=lab.tfplan
+          { echo '```'; terraform show -no-color lab.tfplan; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          gcloud storage cp lab.tfplan "gs://$TF_STATE_BUCKET/plans/$GITHUB_SHA-$GITHUB_RUN_ID.tfplan"
+          echo "plan_sha256=$(sha256sum lab.tfplan | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+  apply:
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: lab
+    permissions:
+      contents: read
+      id-token: write
+    concurrency: terraform-lab
+    defaults:
+      run:
+        working-directory: infra/envs/lab
+    steps:
+      - uses: actions/checkout@v7
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_APPLY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.5
+          terraform_wrapper: false
+      - run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
+      - name: Apply the reviewed plan, after checking it was not changed
+        env:
+          PLAN_SHA256: ${{ needs.plan.outputs.plan_sha256 }}
+        run: |
+          gcloud storage cp "gs://$TF_STATE_BUCKET/plans/$GITHUB_SHA-$GITHUB_RUN_ID.tfplan" lab.tfplan
+          echo "$PLAN_SHA256  lab.tfplan" | sha256sum --check
+          terraform apply lab.tfplan
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Nominal path test
+        run: |
+          ../../../scripts/nominal-path-test.sh "$TF_VAR_project_id" \
+            "$(terraform output -raw topic_name)" "$(terraform output -raw bigquery_table)" "$TF_VAR_region"

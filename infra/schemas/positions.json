@@ -1,0 +1,32 @@
+[
+  {
+    "name": "event_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Identifiant de l'événement."
+  },
+  {
+    "name": "vehicle_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Identifiant du véhicule."
+  },
+  {
+    "name": "event_time",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Date et heure de la position."
+  },
+  {
+    "name": "latitude",
+    "type": "FLOAT",
+    "mode": "REQUIRED",
+    "description": "Latitude du véhicule."
+  },
+  {
+    "name": "longitude",
+    "type": "FLOAT",
+    "mode": "REQUIRED",
+    "description": "Longitude du véhicule."
+  }
+]

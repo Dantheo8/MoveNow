@@ -1,0 +1,46 @@
+# Manual destroy: run it from the Actions tab on main, approve it in the "lab" environment.
+# It then lists what remains. The bootstrap (state bucket, identities) is not touched.
+name: Terraform destroy
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+concurrency: terraform-lab
+
+env:
+  TF_INPUT: 'false'
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+  TF_VAR_region: ${{ vars.GCP_REGION }}
+  TF_VAR_prefix: ${{ vars.TF_PREFIX }}
+
+jobs:
+  destroy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: lab
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: bash
+        working-directory: infra/envs/lab
+    steps:
+      - uses: actions/checkout@v7
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_APPLY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.5
+          terraform_wrapper: false
+      - run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
+      - run: terraform destroy -auto-approve
+      - name: Inventory of what remains
+        if: always()
+        run: ../../../scripts/inventory.sh "$TF_VAR_project_id" "$TF_VAR_prefix" | tee -a "$GITHUB_STEP_SUMMARY"

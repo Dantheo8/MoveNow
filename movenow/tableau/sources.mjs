@@ -317,8 +317,8 @@ async function sourceBigQuery(env) {
   async function rafraichir() {
     try {
       const [compte] = await requete(`SELECT COUNT(*) AS recus FROM ${table} WHERE event_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)`);
-      const debit = await requete(`SELECT UNIX_SECONDS(TIMESTAMP_TRUNC(event_time, MINUTE)) AS t, COUNT(*) AS n FROM ${table}
-        WHERE event_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 MINUTE) GROUP BY t ORDER BY t`);
+      const debit = await requete(`SELECT DIV(UNIX_SECONDS(event_time), 10) * 10 AS t, COUNT(*) AS n FROM ${table}
+        WHERE event_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 10 MINUTE) GROUP BY t ORDER BY t`);
       const positions = await requete(`SELECT vehicle_id, latitude, longitude, event_time FROM ${table}
         WHERE event_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 10 MINUTE)
         QUALIFY ROW_NUMBER() OVER (PARTITION BY vehicle_id ORDER BY event_time DESC) = 1`);
@@ -341,13 +341,13 @@ async function sourceBigQuery(env) {
     }
   }
   const pret = rafraichir();
-  setInterval(rafraichir, Number(env.REFRESH_SECONDS || 20) * 1000).unref();
+  setInterval(rafraichir, Number(env.REFRESH_SECONDS || 10) * 1000).unref();
 
   return {
     mode: 'bigquery',
     libelle: `BigQuery, ${env.BQ_TABLE}`,
     pret,
-    async etat() { return { compteurs: cache.compteurs, debit: cache.debit, transfert: { pilotable: false, actif: null }, erreur: cache.erreur, pas_secondes: 60 }; },
+    async etat() { return { compteurs: cache.compteurs, debit: cache.debit, transfert: { pilotable: false, actif: null }, erreur: cache.erreur, pas_secondes: 10 }; },
     async positions() { return cache.positions; },
     async evenements() { return cache.evenements; },
     async deadLetter() { return cache.deadLetter; },
