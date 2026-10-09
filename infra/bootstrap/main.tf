@@ -56,6 +56,10 @@ resource "google_storage_bucket" "state" {
     }
   }
 
+  lifecycle {
+    ignore_changes = [encryption]
+  }
+
   depends_on = [google_project_service.this]
 }
 

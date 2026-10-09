@@ -66,16 +66,8 @@ terraform apply bootstrap.tfplan
 terraform output github_variables
 ```
 
-The state of the bootstrap is local (`terraform.tfstate`, ignored by Git). Once the bucket exists,
-move it there so it is not lost: add the block below inside `terraform { }` in `versions.tf`, then
-run `terraform init -migrate-state`.
-
-```hcl
-backend "gcs" {
-  bucket = "<state_bucket output>"
-  prefix = "bootstrap"
-}
-```
+Its own state lives in the same bucket, under the prefix `bootstrap` (see `versions.tf`). The
+bucket's encryption settings are left to Google's defaults (`ignore_changes`).
 
 ## 2. Configure GitHub (repository admin)
 

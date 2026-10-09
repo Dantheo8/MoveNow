@@ -7,4 +7,9 @@ terraform {
       version = "8.6.0"
     }
   }
+
+  backend "gcs" {
+    bucket = "bucket-gcs-movenow"
+    prefix = "bootstrap"
+  }
 }
