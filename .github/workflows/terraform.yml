@@ -1,5 +1,5 @@
 # Every change: fmt and validate, without cloud access.
-# Push to main: plan, wait for an approval in the "lab" environment, apply that exact plan, test.
+# Push to main: plan, apply that exact plan, then test.
 name: Terraform
 
 on:
@@ -13,7 +13,7 @@ permissions:
 
 env:
   TF_INPUT: 'false'
-  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'bucket-gcs-movenow' }}
   TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
   TF_VAR_region: ${{ vars.GCP_REGION }}
   TF_VAR_prefix: ${{ vars.TF_PREFIX }}
@@ -65,7 +65,6 @@ jobs:
   apply:
     needs: plan
     runs-on: ubuntu-latest
-    environment: lab
     permissions:
       contents: read
       id-token: write

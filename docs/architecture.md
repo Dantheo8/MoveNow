@@ -34,7 +34,7 @@ flowchart LR
 | `g3-movenow-producer` | Publish to the positions topic only | bootstrap |
 | Pub/Sub service agent | Write to the table, publish to the dead-letter topic, acknowledge on the subscription | Google; rights from `delivery` |
 | `g3-movenow-ci-plan` | Read the project and the state; add new saved plans | bootstrap |
-| `g3-movenow-ci-apply` | Manage Pub/Sub, BigQuery, Monitoring, APIs; only after an approval | bootstrap |
+| `g3-movenow-ci-apply` | Manage Pub/Sub, BigQuery, Monitoring, APIs; only from `main` | bootstrap |
 
 No service account key exists. People and the CI get short-lived credentials (impersonation,
 workload identity federation).
@@ -62,16 +62,17 @@ Gain: an invalid message is kept in the dead letter, so it can be inspected, fix
 Cost: invalid messages enter Pub/Sub, and the schema only checks types, not ranges: a latitude of
 999 is accepted.
 
-**3. A keyless CI with two identities and an approval.**
+**3. A keyless CI with two identities.**
 Rejected: one service account key stored as a GitHub secret.
-Gain: nothing to leak or rotate. The plan identity is read-only; the apply identity is available
-only after a human approves, only from `main`, only for this repository's numeric id.
-Cost: a bootstrap to apply by hand, and a GitHub environment to configure.
+Gain: nothing to leak or rotate. The plan identity is read-only; both identities are available
+only from `main`, and only for this repository's numeric id.
+Cost: a bootstrap to apply by hand. With a single environment there is no approval step: a push to
+`main` is applied right after its plan.
 
 ## CI
 
 ```mermaid
 flowchart LR
   A[Pull request or push to dev] --> V1[validate]
-  B[Push to main] --> V2[validate] --> P[plan<br/>ci-plan] --> R{Approval<br/>environment lab} --> X[apply and nominal test<br/>ci-apply]
+  B[Push to main] --> V2[validate] --> P[plan<br/>ci-plan] --> X[apply and nominal test<br/>ci-apply]
 ```

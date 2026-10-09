@@ -7,8 +7,7 @@ state_bucket_name = "bucket-gcs-movenow"
 github_repository_id       = "1408728275"
 github_repository_owner_id = "146971587"
 
-deploy_branch      = "main"
-deploy_environment = "lab"
+deploy_branch = "main"
 
 producer_impersonators = [
   "user:first.last@example.com",

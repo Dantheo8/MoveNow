@@ -10,9 +10,10 @@ locals {
 
   state_bucket_name = coalesce(var.state_bucket_name, "${var.project_id}-${var.prefix}-tfstate")
 
-  github_subject  = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/subject/repo:${var.github_repository}"
-  plan_principal  = "${local.github_subject}:ref:refs/heads/${var.deploy_branch}"
-  apply_principal = "${local.github_subject}:environment:${var.deploy_environment}"
+  repository_owner = split("/", var.github_repository)[0]
+  repository_name  = split("/", var.github_repository)[1]
+  github_subject   = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/subject/repo:${local.repository_owner}@${var.github_repository_owner_id}/${local.repository_name}@${var.github_repository_id}"
+  main_principal   = "${local.github_subject}:ref:refs/heads/${var.deploy_branch}"
 }
 
 resource "google_project_service" "this" {
@@ -107,7 +108,7 @@ resource "google_service_account" "apply" {
   project      = var.project_id
   account_id   = "${var.prefix}-ci-apply"
   display_name = "CI apply"
-  description  = "Applies reviewed plans from the ${var.deploy_environment} environment of ${var.github_repository}."
+  description  = "Applies the plans of ${var.github_repository} on ${var.deploy_branch}."
 }
 
 resource "google_service_account" "producer" {
@@ -128,13 +129,13 @@ resource "google_service_account_iam_member" "producer_impersonators" {
 resource "google_service_account_iam_member" "plan_workload_identity" {
   service_account_id = google_service_account.plan.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = local.plan_principal
+  member             = local.main_principal
 }
 
 resource "google_service_account_iam_member" "apply_workload_identity" {
   service_account_id = google_service_account.apply.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = local.apply_principal
+  member             = local.main_principal
 }
 
 resource "google_project_iam_member" "plan" {

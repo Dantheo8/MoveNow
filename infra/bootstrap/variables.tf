@@ -61,15 +61,9 @@ variable "github_repository_owner_id" {
 }
 
 variable "deploy_branch" {
-  description = "Trusted branch whose workflows may plan with the plan identity."
+  description = "Trusted branch: only its workflows get the CI identities."
   type        = string
   default     = "main"
-}
-
-variable "deploy_environment" {
-  description = "GitHub environment, protected by required reviewers, whose jobs may apply with the apply identity."
-  type        = string
-  default     = "lab"
 }
 
 variable "state_bucket_name" {

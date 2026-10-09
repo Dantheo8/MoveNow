@@ -1,4 +1,4 @@
-# Manual destroy: run it from the Actions tab on main, approve it in the "lab" environment.
+# Manual destroy: run it from the Actions tab on main.
 # It then lists what remains. The bootstrap (state bucket, identities) is not touched.
 name: Terraform destroy
 
@@ -11,7 +11,7 @@ concurrency: terraform-lab
 
 env:
   TF_INPUT: 'false'
-  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'bucket-gcs-movenow' }}
   TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
   TF_VAR_region: ${{ vars.GCP_REGION }}
   TF_VAR_prefix: ${{ vars.TF_PREFIX }}
@@ -20,7 +20,6 @@ jobs:
   destroy:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: lab
     permissions:
       contents: read
       id-token: write
